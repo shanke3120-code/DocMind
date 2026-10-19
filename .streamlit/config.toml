@@ -1,0 +1,7 @@
+# Dark theme for DocMind (put this folder next to app.py)
+[theme]
+base = "dark"
+primaryColor = "#8b7bff"
+backgroundColor = "#0b0d14"
+secondaryBackgroundColor = "#0e1019"
+textColor = "#e8eaf6"

@@ -1,0 +1,21 @@
+
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# Virtual environments and Python cache
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Older app versions
+app.py
+app1.py
+app2.py
+app3.py
+app4.py
+
+# Local sample files
+sample.pdf
+transcript.txt
