@@ -13,6 +13,7 @@ import base64, html, inspect, json, math, os, random, re, tempfile, time, uuid  
 from datetime import datetime
 from pathlib import Path
 from typing import List
+
 # ---------- Settings you can change ----------
 OWNER = {
     "name": "Shashank Kumar Jha",
@@ -23,12 +24,14 @@ OWNER = {
     "linkedin": "https://www.linkedin.com/in/shashank-jha-520689325/",
     "email": "mailto:shanke3120@gmail.com",
 }
+
 PRIMARY_MODEL = "openai/gpt-oss-120b"   # main model
 BACKUP_MODEL = "openai/gpt-oss-20b"     # used automatically if the main one fails (e.g. daily limit)
 SAVE_CHATS = False   # True keeps chats in chats.json. Local use only: on a shared server it would mix users' chats.
 PIN_PROFILE = True   # keeps the profile card at the bottom of the sidebar
 # Newer Streamlit uses width="stretch"; older versions use use_container_width=True
 STRETCH = {"width": "stretch"} if "width" in inspect.signature(st.button).parameters else {"use_container_width": True}
+
 # ---------- Avatars and icons (SVG drawn in code, turned into data URIs) ----------
 AI_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
           '<stop offset="0" stop-color="#a79bff"/><stop offset="1" stop-color="#5eead4"/></linearGradient></defs>'
@@ -54,9 +57,11 @@ GITHUB_SVG = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path
 LINKEDIN_SVG = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#e8eaf6" d="{LINKEDIN_PATH}"/></svg>'
 MAIL_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#e8eaf6" stroke-width="1.8" '
             'stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7.5 12 13l8.5-5.5"/></svg>')
+
 def svg_uri(svg):
     return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
 AI_URI, USER_URI = svg_uri(AI_SVG), svg_uri(USER_SVG)
+
 # ---------- Styling (dark theme, glowing cards, modern fonts) ----------
 CSS = """
 <style>
@@ -64,6 +69,27 @@ CSS = """
 html, body, .stMarkdown, button, input, textarea {font-family:'DM Sans',sans-serif !important}
 h1, h2, h3, .sora {font-family:'Sora',sans-serif !important}
 .stApp {background:#0b0d14; color:#e8eaf6}
+
+/* Calm floating AI network background (CSS only; no mouse interaction or JavaScript) */
+.stApp {
+    background-color: #0b0d14;
+    background-image:
+        radial-gradient(circle at 18% 22%, rgba(94,234,212,.07), transparent 27%),
+        radial-gradient(circle at 78% 68%, rgba(139,123,255,.09), transparent 32%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='440' viewBox='0 0 560 440'%3E%3Cg fill='none' stroke='%238b7bff' stroke-opacity='.22' stroke-width='1'%3E%3Cpath d='M35 65 L135 110 L225 48 L330 105 L455 55 L520 145 M35 65 L75 205 L180 250 L225 48 M135 110 L180 250 L290 205 L330 105 L420 260 L520 145 M75 205 L95 360 L180 250 L290 370 L420 260 L510 365 M290 205 L290 370 M420 260 L455 55 M95 360 L205 405 L290 370 L410 410 L510 365'/%3E%3C/g%3E%3Cg fill='%235eead4' fill-opacity='.52'%3E%3Ccircle cx='35' cy='65' r='2.5'/%3E%3Ccircle cx='135' cy='110' r='2'/%3E%3Ccircle cx='225' cy='48' r='2.5'/%3E%3Ccircle cx='330' cy='105' r='2'/%3E%3Ccircle cx='455' cy='55' r='2.5'/%3E%3Ccircle cx='520' cy='145' r='2'/%3E%3Ccircle cx='75' cy='205' r='2'/%3E%3Ccircle cx='180' cy='250' r='2.5'/%3E%3Ccircle cx='290' cy='205' r='2'/%3E%3Ccircle cx='420' cy='260' r='2.5'/%3E%3Ccircle cx='95' cy='360' r='2'/%3E%3Ccircle cx='290' cy='370' r='2.5'/%3E%3Ccircle cx='510' cy='365' r='2'/%3E%3Ccircle cx='205' cy='405' r='2'/%3E%3Ccircle cx='410' cy='410' r='2'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: auto, auto, 560px 440px;
+    background-position: 0 0, 0 0, 0 0;
+    background-repeat: no-repeat, no-repeat, repeat;
+    animation: docmind-network-drift 48s linear infinite;
+}
+@keyframes docmind-network-drift {
+    from { background-position: 0 0, 0 0, 0 0; }
+    to   { background-position: 0 0, 0 0, 560px 440px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .stApp { animation: none; }
+}
+
 [data-testid="stHeader"] {background:transparent}
 footer, [data-testid="stAppDeployButton"], [data-testid="stMainMenu"] {display:none !important}
 [data-testid="stSidebar"] {background:#0b0d14; border-right:1px solid #252b46}
@@ -250,6 +276,95 @@ button[data-baseweb="tab"] p {font-size:17px !important; font-weight:600}
 @keyframes crawl-w {from {width:0} to {width:99%}}
 @keyframes breathe {0%,100% {transform:scale(1); box-shadow:0 0 40px rgba(139,123,255,.35)}
                     50% {transform:scale(1.09); box-shadow:0 0 100px rgba(94,234,212,.5)}}
+/* Futuristic AI particle field */
+.splash {
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.splash::before {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(139,123,255,.16), transparent 22%),
+        radial-gradient(circle at 30% 40%, rgba(94,234,212,.10), transparent 25%),
+        radial-gradient(circle at 70% 60%, rgba(139,123,255,.10), transparent 28%);
+    animation: nebula-drift 9s ease-in-out infinite alternate;
+}
+
+.particle-field {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    background: #a79bff;
+    box-shadow: 0 0 12px rgba(139,123,255,.8);
+    opacity: 0;
+    animation: particle-float var(--duration) ease-in-out infinite;
+    animation-delay: var(--delay);
+}
+
+.particle:nth-child(3n) {
+    background: #5eead4;
+    box-shadow: 0 0 12px rgba(94,234,212,.8);
+}
+
+.splash-orb {
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 0 28px rgba(139,123,255,.35));
+}
+
+.splash-title {
+    letter-spacing: 5px;
+    background: linear-gradient(90deg, #a79bff, #f2f0ff, #5eead4);
+    background-size: 200% auto;
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: title-shimmer 3s linear infinite;
+}
+
+.splash-subtitle {
+    color: #b8b5d6;
+    letter-spacing: 1.5px;
+    animation: subtitle-pulse 2s ease-in-out infinite;
+}
+
+@keyframes particle-float {
+    0%   { transform: translate3d(0, 20px, 0) scale(.5); opacity: 0; }
+    25%  { opacity: .8; }
+    70%  { opacity: .55; }
+    100% { transform: translate3d(35px, -100px, 0) scale(1.2); opacity: 0; }
+}
+
+@keyframes nebula-drift {
+    from { transform: translate3d(-2%, -1%, 0) rotate(0deg); }
+    to   { transform: translate3d(2%, 1%, 0) rotate(8deg); }
+}
+
+@keyframes title-shimmer {
+    from { background-position: 0% center; }
+    to   { background-position: 200% center; }
+}
+
+@keyframes subtitle-pulse {
+    0%, 100% { opacity: .65; }
+    50%      { opacity: 1; }
+}
+
 .splash {position:fixed; inset:0; z-index:999999999; background:#0b0d14; color:#e8eaf6; display:flex; flex-direction:column;
          align-items:center; justify-content:center; gap:22px; text-align:center}
 .splash-orb {width:132px; height:132px; border-radius:50%; animation:breathe 3s ease-in-out infinite}
@@ -263,6 +378,7 @@ button[data-baseweb="tab"] p {font-size:17px !important; font-weight:600}
 @media (prefers-reduced-motion: reduce) {* {animation-duration:.01ms !important; transition:none !important}}
 </style>
 """
+
 # Light mode: the whole page is colour-inverted (every widget stays readable), then photos and avatars are flipped back
 LIGHT_CSS = """
 <style>
@@ -276,12 +392,42 @@ st.markdown(CSS + (LIGHT_CSS if light_mode else ""), unsafe_allow_html=True)
 if PIN_PROFILE:  # sticky profile card (remove this block if it misbehaves on your screen)
     st.markdown("<style>.st-key-profilebox{position:sticky;bottom:0;z-index:5;background:#0b0d14;padding:8px 0 2px;border-top:1px solid #252b46}</style>",
                 unsafe_allow_html=True)
+    
 # ---------- Splash screen (first visit only) ----------
-SPLASH = ('<div class="splash"><img class="splash-orb" src="' + AI_URI + '">'
-          '<div class="sora" style="font-size:34px;font-weight:700">DocMind</div>'
-          '<div style="color:#c9c2ff;font-size:15px">__LABEL__</div>'
-          '<div><div class="track"><div class="fill__DONE__"></div></div>'
-          '<div class="pct__DONE__" style="margin-top:12px"></div></div></div>')
+
+PARTICLES = "".join(
+    f'<span class="particle" style="--x:{x}%;--y:{y}%;'
+    f'--size:{size}px;--duration:{duration}s;--delay:-{delay}s"></span>'
+    for x, y, size, duration, delay in [
+        (8, 20, 3, 7, 1),
+        (18, 70, 4, 9, 3),
+        (28, 35, 2, 8, 2),
+        (38, 82, 4, 10, 5),
+        (48, 15, 3, 7, 4),
+        (58, 60, 2, 9, 1),
+        (68, 30, 4, 8, 6),
+        (78, 75, 3, 11, 2),
+        (88, 45, 2, 7, 3),
+        (95, 18, 4, 10, 5),
+        (14, 48, 2, 8, 4),
+        (42, 55, 3, 9, 6),
+        (73, 12, 2, 7, 2),
+        (83, 88, 3, 10, 1),
+        (53, 90, 4, 8, 5),
+    ]
+)
+
+SPLASH = (
+    '<div class="splash">'
+    '<div class="particle-field" aria-hidden="true">' + PARTICLES + '</div>'
+    '<img class="splash-orb" src="' + AI_URI + '" alt="DocMind AI">'
+    '<div class="splash-title" style="font-size:34px;font-weight:700">DocMind</div>'
+    '<div class="splash-subtitle">__LABEL__</div>'
+    '<div><div class="track"><div class="fill__DONE__"></div></div>'
+    '<div class="pct__DONE__" style="margin-top:12px"></div></div>'
+    '</div>'
+)
+
 booting = not st.session_state.get("booted", False)
 splash = st.empty()
 boot_start = time.time()
@@ -291,6 +437,7 @@ def show_splash(label, done=False):
                     unsafe_allow_html=True)
 if booting:
     show_splash("Waking up your AI…")
+
 # ---------- Heavy imports (they run while the splash is visible) ----------
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -313,6 +460,7 @@ if booting:
         time.sleep(0.5)
     splash.empty()
     st.session_state["booted"] = True
+
 # ---------- PDF loading and indexing ----------
 def load_pdf(uploaded_file):
     # PyPDFLoader needs a file path, so save the upload to a temp file first
