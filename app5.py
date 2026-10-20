@@ -29,6 +29,7 @@ PRIMARY_MODEL = "openai/gpt-oss-120b"   # main model
 BACKUP_MODEL = "openai/gpt-oss-20b"     # used automatically if the main one fails (e.g. daily limit)
 SAVE_CHATS = False   # True keeps chats in chats.json. Local use only: on a shared server it would mix users' chats.
 PIN_PROFILE = True   # keeps the profile card at the bottom of the sidebar
+MIN_SPLASH = 2.5   # the splash stays at least this many seconds, even when loading is instant
 # Newer Streamlit uses width="stretch"; older versions use use_container_width=True
 STRETCH = {"width": "stretch"} if "width" in inspect.signature(st.button).parameters else {"use_container_width": True}
 
@@ -68,27 +69,10 @@ CSS = """
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap');
 html, body, .stMarkdown, button, input, textarea {font-family:'DM Sans',sans-serif !important}
 h1, h2, h3, .sora {font-family:'Sora',sans-serif !important}
-.stApp {background:#0b0d14; color:#e8eaf6}
-
-/* Calm floating AI network background (CSS only; no mouse interaction or JavaScript) */
-.stApp {
-    background-color: #0b0d14;
-    background-image:
-        radial-gradient(circle at 18% 22%, rgba(94,234,212,.07), transparent 27%),
-        radial-gradient(circle at 78% 68%, rgba(139,123,255,.09), transparent 32%),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='440' viewBox='0 0 560 440'%3E%3Cg fill='none' stroke='%238b7bff' stroke-opacity='.22' stroke-width='1'%3E%3Cpath d='M35 65 L135 110 L225 48 L330 105 L455 55 L520 145 M35 65 L75 205 L180 250 L225 48 M135 110 L180 250 L290 205 L330 105 L420 260 L520 145 M75 205 L95 360 L180 250 L290 370 L420 260 L510 365 M290 205 L290 370 M420 260 L455 55 M95 360 L205 405 L290 370 L410 410 L510 365'/%3E%3C/g%3E%3Cg fill='%235eead4' fill-opacity='.52'%3E%3Ccircle cx='35' cy='65' r='2.5'/%3E%3Ccircle cx='135' cy='110' r='2'/%3E%3Ccircle cx='225' cy='48' r='2.5'/%3E%3Ccircle cx='330' cy='105' r='2'/%3E%3Ccircle cx='455' cy='55' r='2.5'/%3E%3Ccircle cx='520' cy='145' r='2'/%3E%3Ccircle cx='75' cy='205' r='2'/%3E%3Ccircle cx='180' cy='250' r='2.5'/%3E%3Ccircle cx='290' cy='205' r='2'/%3E%3Ccircle cx='420' cy='260' r='2.5'/%3E%3Ccircle cx='95' cy='360' r='2'/%3E%3Ccircle cx='290' cy='370' r='2.5'/%3E%3Ccircle cx='510' cy='365' r='2'/%3E%3Ccircle cx='205' cy='405' r='2'/%3E%3Ccircle cx='410' cy='410' r='2'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: auto, auto, 560px 440px;
-    background-position: 0 0, 0 0, 0 0;
-    background-repeat: no-repeat, no-repeat, repeat;
-    animation: docmind-network-drift 48s linear infinite;
-}
-@keyframes docmind-network-drift {
-    from { background-position: 0 0, 0 0, 0 0; }
-    to   { background-position: 0 0, 0 0, 560px 440px; }
-}
-@media (prefers-reduced-motion: reduce) {
-    .stApp { animation: none; }
-}
+html, body {background:#0b0d14}  /* the dark base color now lives on the page itself */
+/* make Streamlit's own layers see-through so our canvas shows behind them */
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {background:transparent !important; color:#e8eaf6}
+[data-testid="stBottom"] > div {background:transparent !important}  /* the area around the chat input */
 
 [data-testid="stHeader"] {background:transparent}
 footer, [data-testid="stAppDeployButton"], [data-testid="stMainMenu"] {display:none !important}
@@ -128,11 +112,14 @@ footer, [data-testid="stAppDeployButton"], [data-testid="stMainMenu"] {display:n
 .dot:nth-child(2) {animation-delay:.2s} .dot:nth-child(3) {animation-delay:.4s}
 @keyframes pulse {0%,100% {opacity:.3} 50% {opacity:1}}
 .gap {height:28px}
+/* hides the 1px helper iframe that runs our background script */
+.st-key-bgjs {position:absolute; height:0; margin:0; overflow:hidden}
+
 /* Theme switch (fixed, top right) */
 .st-key-themebox {position:fixed; top:12px; right:140px; left:auto; width:fit-content !important; z-index:1000001; padding:2px 14px 0; border-radius:999px;
                   background:#111420; border:1px solid #252b46; box-shadow:0 0 18px rgba(139,123,255,.18)}
 /* Home card: the whole card is clickable (the button's ::after stretches over it) */
-.st-key-herocard {position:relative; padding:20px 22px; border-radius:18px; background:#111420; border:1px solid #252b46;
+.st-key-herocard {position:relative; padding:20px 22px; border-radius:18px; background:rgba(17,20,32,.55); backdrop-filter:blur(6px); border:1px solid #252b46;
                   min-height:150px; transition:all .2s ease}
 .st-key-herocard:hover {border-color:#9b83ff; box-shadow:0 0 30px rgba(139,123,255,.28)}
 .st-key-herobtn, .st-key-herobtn div, .st-key-orbbtn, .st-key-orbbtn div {position:static !important}
@@ -143,7 +130,7 @@ footer, [data-testid="stAppDeployButton"], [data-testid="stMainMenu"] {display:n
 @keyframes ctapulse {0%,100% {box-shadow:0 0 20px rgba(139,123,255,.35)} 50% {box-shadow:0 0 44px rgba(94,234,212,.55)}}
 .st-key-orbcard {position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:25px;
                  min-height:150px; border-radius:20px; border:1px solid #252b46; transition:all .2s ease;
-                 background:radial-gradient(circle at 65% 40%,rgba(112,94,230,.16),transparent 42%),#111420}
+                 background:radial-gradient(circle at 65% 40%,rgba(112,94,230,.16),transparent 42%),rgba(17,20,32,.55); backdrop-filter:blur(6px)}
 .st-key-orbcard:hover {border-color:#5eead4; box-shadow:0 0 30px rgba(94,234,212,.25)}
 .st-key-orbcard:hover .orb {animation-duration:1.2s}
 .st-key-orbcard [data-testid="stMarkdownContainer"] {display:flex; justify-content:center; width:100%}
@@ -272,8 +259,9 @@ button[data-baseweb="tab"] p {font-size:17px !important; font-weight:600}
 .flow span {padding:5px 10px; border-radius:999px; font-size:12px; background:rgba(139,123,255,.12); border:1px solid rgba(139,123,255,.35)}
 /* Splash screen: one smooth, slowing climb from 0 to 99%; it reaches 100% only when loading is really done */
 @property --n {syntax:'<integer>'; initial-value:0; inherits:false}
-@keyframes crawl-n {from {--n:0} to {--n:99}}
-@keyframes crawl-w {from {width:0} to {width:99%}}
+/* two-stage climb: fast to 90% in the first ~2 seconds, then a slow creep toward 99% */
+@keyframes crawl-n {0% {--n:0} 7% {--n:90} 100% {--n:99}}
+@keyframes crawl-w {0% {width:0} 7% {width:90%} 100% {width:99%}}
 @keyframes breathe {0%,100% {transform:scale(1); box-shadow:0 0 40px rgba(139,123,255,.35)}
                     50% {transform:scale(1.09); box-shadow:0 0 100px rgba(94,234,212,.5)}}
 /* Futuristic AI particle field */
@@ -369,8 +357,8 @@ button[data-baseweb="tab"] p {font-size:17px !important; font-weight:600}
          align-items:center; justify-content:center; gap:22px; text-align:center}
 .splash-orb {width:132px; height:132px; border-radius:50%; animation:breathe 3s ease-in-out infinite}
 .track {width:min(420px,80vw); height:10px; border-radius:999px; background:#1d2133; overflow:hidden}
-.fill {height:100%; width:0; border-radius:999px; background:linear-gradient(90deg,#8b7bff,#5eead4); animation:crawl-w 30s cubic-bezier(.08,.6,.2,1) forwards}
-.pct {font-family:'Sora',sans-serif; font-size:20px; font-weight:600; counter-reset:n var(--n); animation:crawl-n 30s cubic-bezier(.08,.6,.2,1) forwards}
+.fill {height:100%; width:0; border-radius:999px; background:linear-gradient(90deg,#8b7bff,#5eead4); animation:crawl-w 30s ease-out forwards}
+.pct {font-family:'Sora',sans-serif; font-size:20px; font-weight:600; counter-reset:n var(--n); animation:crawl-n 30s ease-out forwards}
 .pct::after {content:counter(n) "%"}
 .fill.done {width:100%; animation:none}
 .pct.done {animation:none}
@@ -454,10 +442,12 @@ load_dotenv()  # reads GROQ_API_KEY from the .env file
 def get_embeddings():
     return HuggingFaceEmbeddings(model="sentence-transformers/all-MiniLM-L6-v2")
 if booting:
-    get_embeddings()  # the slowest part: loads the embedding model once
-    if time.time() - boot_start > 1.5:  # skip the 100% pause when everything was already cached
-        show_splash("Ready!", done=True)
-        time.sleep(0.5)
+    get_embeddings()  # still loads the model (instant if the server is warm)
+    elapsed = time.time() - boot_start
+    if elapsed < MIN_SPLASH:                 # loading was fast, so wait out the rest of the time
+        time.sleep(MIN_SPLASH - elapsed)
+    show_splash("Ready!", done=True)         # always show the 100% screen now
+    time.sleep(0.6)
     splash.empty()
     st.session_state["booted"] = True
 
@@ -1025,6 +1015,200 @@ def draw_quiz(pdf, quiz):
             f'<b>{s["score"]}/{s["total"]}</b><span class="muted">{s["time"]}</span>{tag}</div>',
             unsafe_allow_html=True,
         )
+# ---------- Animated network background (step 1: test canvas) ----------
+BG_JS = """<script>
+const win = window.parent, doc = win.document;   // the iframe lives inside Streamlit, so we reach out to the real page
+let canvas = doc.getElementById('docmind-bg');   // Streamlit reruns often, so reuse the canvas if it exists
+if (!canvas) {
+  canvas = doc.createElement('canvas');
+  canvas.id = 'docmind-bg';
+  // fixed = stays put while scrolling, z-index -1 = behind everything, pointer-events none = never blocks clicks
+  canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;';
+  doc.body.appendChild(canvas);
+}
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, particles = [], grad = null;
+const mouse = {x: -9999, y: -9999};     // far off-screen = "no mouse yet"
+const calm = win.matchMedia('(prefers-reduced-motion: reduce)').matches;  // respect "reduce motion" setting
+const LINK = 95;                        // dots closer than this get a line
+const PUSH_R = 160;                      // how far the mouse pushes dots
+const GLOW_R = 240;                      // how far the mouse brightens lines
+
+function waveY(x, t) {                    // centre line: a bigger, smoother S-curve
+  return H * 0.5
+    + Math.sin(x * 0.0036 + t * 0.00025) * H * 0.16
+    + Math.sin(x * 0.0075 - t * 0.0004) * H * 0.035;
+}
+
+// How wide the ribbon is at x: it pinches and widens as it flows, like in your image
+function ribbonWidth(x, t) {
+  return H * (0.2 + 0.045 * Math.sin(x * 0.0023 - t * 0.00035 + 1.2));
+}
+
+function colorAt(x, a = 1) {             // teal -> purple by x position, with opacity a
+  const k = Math.min(1, Math.max(0, x / W));
+  const r = Math.round(94 + (167 - 94) * k);
+  const g = Math.round(234 + (139 - 234) * k);
+  const b = Math.round(212 + (250 - 212) * k);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function makeParticles() {
+  const count = Math.round(Math.min(450, Math.max(140, W * H / 3200)));  // far more dots now
+  particles = [];
+  for (let i = 0; i < count; i++) {
+    const stray = Math.random() < 0.12;  // ~12% wander far from the ribbon
+    // adding 3 random numbers bunches results near 0: dense core, thin edges
+    const core = (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+    particles.push({
+      x: (i + Math.random()) / count * W,          // evenly spread across the whole width
+      offset: stray ? (Math.random() - 0.5) * 5 : core,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.3,
+      size: stray ? 0.8 + Math.random() * 0.8 : 1 + Math.random() * 1.6,
+      ox: 0, oy: 0,                                // how far the mouse has pushed this dot
+      rx: 0, ry: 0,                                // final drawn position
+    });
+  }
+}
+
+function resize() {
+  const dpr = Math.min(win.devicePixelRatio || 1, 2);
+  W = win.innerWidth; H = win.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  grad = ctx.createLinearGradient(0, 0, W, 0);     // colour for the flowing strands
+  grad.addColorStop(0, '#5eead4'); grad.addColorStop(1, '#c084fc');
+  makeParticles();
+}
+
+const RIBBONS = 28;                              // many fine strands, like silk threads
+
+// Bends a point away from the mouse (same soft bump the strands use)
+function bend(x, y) {
+  const dx = x - mouse.x, dy = y - mouse.y;
+  return y + Math.sign(dy) * 45 * Math.exp(-(dx * dx + dy * dy) / (2 * 130 * 130));
+}
+
+// The filled glow: stacked translucent shapes, wide to narrow, all following the ribbon
+function drawBand(t) {
+  ctx.shadowBlur = 0;
+  ctx.globalCompositeOperation = 'lighter';     // layers add their light, so the middle glows most
+  ctx.fillStyle = grad;                         // same teal -> purple gradient
+  ctx.globalAlpha = 0.045;                       // each layer is faint; stacking builds the colour
+  for (const s of [0.80, 0.95, 0.7, 0.45, 0.2]) {   // s = how much of the ribbon's width this layer covers
+    ctx.beginPath();
+    for (let x = -10; x <= W + 10; x += 10) {          // top edge, left to right
+      const y = bend(x, waveY(x, t) - ribbonWidth(x, t) * s);
+      if (x === -10) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    for (let x = W + 10; x >= -10; x -= 10) {          // bottom edge, right back to left
+      ctx.lineTo(x, bend(x, waveY(x, t) + ribbonWidth(x, t) * s));
+    }
+    ctx.closePath();
+    ctx.fill();                                        // colours the area between the two edges
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawRibbons(t) {
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = grad;                        // teal -> purple
+  ctx.globalCompositeOperation = 'lighter';      // overlapping strands add their light together
+  for (let k = 0; k < RIBBONS; k++) {
+    const u = (k / (RIBBONS - 1)) * 2 - 1;       // -1 = top strand ... +1 = bottom strand
+    const core = 1 - Math.abs(u);                // 1 in the middle, 0 at the outer strands
+    for (let pass = 0; pass < 2; pass++) {       // pass 0 = soft wide haze, pass 1 = thin bright thread
+      ctx.lineWidth = pass ? 0.7 + core * 1.1 : 9;
+      ctx.globalAlpha = pass ? 0.14 + core * 0.30 : 0.012 + core * 0.02;
+      ctx.beginPath();
+      for (let x = -10; x <= W + 10; x += 10) {
+        const w = ribbonWidth(x, t);             // half-width of the bundle right here
+        // strand position = centre line + its share of the width, which breathes in and out
+        // per strand (cos) so the threads squeeze together and fan apart; sin adds a fine ripple
+        let y = waveY(x, t)
+          + u * w * (0.55 + 0.45 * Math.cos(x * 0.0042 + k * 0.22 + t * 0.0005))
+          + Math.sin(x * 0.009 + k * 0.9 - t * 0.0006) * H * 0.012 * (1 - Math.abs(u) * 0.5);
+        // the mouse bends nearby strands away
+        const dx = x - mouse.x, dy = y - mouse.y;
+        y += Math.sign(dy) * 45 * Math.exp(-(dx * dx + dy * dy) / (2 * 130 * 130));
+        if (x === -10) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function frame(t) {
+  ctx.clearRect(0, 0, W, H);
+
+    drawBand(t);      // the filled colour first...
+    drawRibbons(t);   // ...then the silky strands on top
+
+  // 2) Move every dot, then push it away from the mouse
+  for (const p of particles) {
+    if (!calm) p.x += p.speed;
+    if (p.x > W + 20) p.x = -20;
+    const by = waveY(p.x, t) + p.offset * ribbonWidth(p.x, t) * 1.1 + Math.sin(t * 0.001 + p.phase) * 6;
+    let tx = 0, ty = 0;                              // where the mouse wants to push this dot
+    const dx = p.x - mouse.x, dy = by - mouse.y, d2 = dx * dx + dy * dy;
+    if (!calm && d2 < PUSH_R * PUSH_R && d2 > 1) {
+      const d = Math.sqrt(d2), f = 1 - d / PUSH_R;   // closer to the mouse = stronger push
+      tx = dx / d * f * 55; ty = dy / d * f * 55;
+    }
+    p.ox += (tx - p.ox) * 0.12;                      // ease toward the push (smooth, springy)
+    p.oy += (ty - p.oy) * 0.12;
+    p.rx = p.x + p.ox; p.ry = by + p.oy;
+  }
+
+  // 3) Lines between close dots; brighter near the mouse
+  ctx.shadowBlur = 0; ctx.lineWidth = 1;
+  const L2 = LINK * LINK;
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const a = particles[i], b = particles[j];
+      const dx = a.rx - b.rx, dy = a.ry - b.ry, d2 = dx * dx + dy * dy;
+      if (d2 < L2) {                                 // cheap check first, sqrt only if close
+        const d = Math.sqrt(d2);
+        let fade = (1 - d / LINK) * 0.45;
+        const mx = (a.rx + b.rx) / 2 - mouse.x, my = (a.ry + b.ry) / 2 - mouse.y;
+        const md = Math.sqrt(mx * mx + my * my);
+        if (md < GLOW_R) fade += (1 - md / GLOW_R) * 0.5;   // mouse makes nearby lines glow
+        ctx.strokeStyle = colorAt((a.rx + b.rx) / 2, fade);
+        ctx.beginPath(); ctx.moveTo(a.rx, a.ry); ctx.lineTo(b.rx, b.ry); ctx.stroke();
+      }
+    }
+  }
+
+  // 4) Dots on top (only the bigger ones get a glow, since glow is expensive to draw)
+  for (const p of particles) {
+    const c = colorAt(p.rx);
+    ctx.shadowBlur = p.size > 2 ? 14 : 0; ctx.shadowColor = c;
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.arc(p.rx, p.ry, p.size, 0, Math.PI * 2); ctx.fill();
+  }
+  win.__dmFrame = win.requestAnimationFrame(frame);
+}
+
+// Clean up old loop/listeners (Streamlit reruns this script), then start fresh
+if (win.__dmFrame) win.cancelAnimationFrame(win.__dmFrame);
+if (win.__dmResize) win.removeEventListener('resize', win.__dmResize);
+if (win.__dmMove) win.removeEventListener('mousemove', win.__dmMove);
+if (win.__dmLeave) doc.documentElement.removeEventListener('mouseleave', win.__dmLeave);
+win.__dmResize = resize;
+win.__dmMove = e => { mouse.x = e.clientX; mouse.y = e.clientY; };         // remember the cursor
+win.__dmLeave = () => { mouse.x = -9999; mouse.y = -9999; };               // cursor left the page
+win.addEventListener('resize', resize);
+win.addEventListener('mousemove', win.__dmMove);
+doc.documentElement.addEventListener('mouseleave', win.__dmLeave);
+resize();
+win.__dmFrame = win.requestAnimationFrame(frame);
+</script>"""
+with st.container(key="bgjs"):   # wrapper so the CSS above can find and hide the iframe
+    run_js(BG_JS)
 
 # ---------- Theme switch (fixed at the top right) ----------
 with st.container(key="themebox"):
