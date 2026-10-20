@@ -619,12 +619,10 @@ ORB_LINES = [
     "Joke: why did the PDF get promoted? It always showed up on the right page.",
 ]
 def next_orb_line():
-    # First tap: a greeting for the time of day. Later taps: random facts and jokes (never the same one twice in a row)
+    # First tap: a friendly greeting. Later taps: random facts and jokes (never the same one twice in a row)
     previous = st.session_state.get("orb_line")
     if not previous:
-        hour = datetime.now().hour
-        part = "morning" if hour < 12 else "afternoon" if hour < 18 else "evening"
-        return f"Good {part}, {OWNER['name'].split()[0]}! 👋 I'm DocMind. Upload a PDF and ask me anything about it."
+        return "Hello there! 👋 I'm DocMind. Upload a PDF and ask me anything about it."
     return random.choice([line for line in ORB_LINES if line != previous])
 OPEN_UPLOADER_JS = """<script>
 const doc = window.parent.document;
